@@ -3,6 +3,7 @@ import gleam/string
 import gleam/list.{Continue, Stop}
 import gleam/int
 import gleam/float
+import gleam/option.{None, Option, Some}
 
 pub type State {
   State(input: List(String), row: Int, col: Int)
@@ -145,6 +146,47 @@ pub fn map2(
       }
 
       Error(errs) -> tuple(state, Error(errs))
+    }
+  })
+}
+
+type OneOfState(a) {
+  OneOfState(new_state: State, result: Option(a), errs: List(DeadEnd))
+}
+
+// decide between multiple parsers
+pub fn one_of(parsers: List(Parser(a))) -> Parser(a) {
+  Parser(fn(state: State) {
+    let initial_state = OneOfState(new_state: state, result: None, errs: [])
+
+    let final_state =
+      parsers
+      |> list.fold_until(
+        initial_state,
+        fn(parser: Parser(a), acc: OneOfState(a)) {
+          let Parser(parse) = parser
+          let result = parse(state)
+
+          case result.1 {
+            Ok(value) ->
+              Stop(OneOfState(
+                new_state: result.0,
+                result: Some(value),
+                errs: [],
+              ))
+            Error(errs) ->
+              Continue(OneOfState(
+                new_state: state,
+                result: None,
+                errs: list.append(acc.errs, errs),
+              ))
+          }
+        },
+      )
+
+    case final_state.result {
+      Some(result) -> tuple(final_state.new_state, Ok(result))
+      None -> tuple(state, Error(final_state.errs))
     }
   })
 }

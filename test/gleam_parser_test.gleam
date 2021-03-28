@@ -96,3 +96,20 @@ pub fn map_over_parsing_success_test() {
   p.run(parser, "foo")
   |> should.equal(Error([p.DeadEnd(1, 1, ExpectingInt)]))
 }
+
+// ONE OF
+pub fn one_of_test() {
+  let parser = p.one_of([p.symbol("hi"), p.symbol("ha")])
+
+  p.run(parser, "hi")
+  |> should.equal(Ok(Nil))
+
+  p.run(parser, "ha")
+  |> should.equal(Ok(Nil))
+
+  p.run(parser, "ho")
+  |> should.equal(Error([
+    p.DeadEnd(1, 1, ExpectingSymbol("hi")),
+    p.DeadEnd(1, 1, ExpectingSymbol("ha")),
+  ]))
+}
